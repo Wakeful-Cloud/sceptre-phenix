@@ -10,6 +10,9 @@
 
 interfaces {
 {{ range $idx, $iface := $node.Network.Interfaces }}
+    {{- if eq $iface.Type "wifi" }}
+    {{- continue }}
+    {{- end }}
     ethernet eth{{ $idx }} {
         {{ if eq $iface.Proto "dhcp" }}
         address dhcp
@@ -77,7 +80,7 @@ nat {
 {{ if $snat }}
     source {
     {{ range $i, $rule := $snat }}
-        rule {{ addInt $i 100 }} {
+        rule {{ add $i 100 }} {
             outbound-interface eth{{ $rule.InterfaceIndex }}
             source {
         {{ if $rule.SourceAddress }}
@@ -117,7 +120,7 @@ nat {
 {{ if $dnat }}
     destination {
     {{ range $i, $rule := $dnat }}
-        rule {{ addInt $i 100 }} {
+        rule {{ add $i 100 }} {
             inbound-interface eth{{ $rule.InterfaceIndex }}
         {{ if or $rule.SourceAddress $rule.SourcePort }}
             source {

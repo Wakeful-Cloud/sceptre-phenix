@@ -121,7 +121,7 @@ bin/phenix: $(SOURCES) generate-bindata generate-protobuf go-generate
 
 bin/phenix-debug: $(SOURCES) generate-bindata generate-protobuf go-generate
 	mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -trimpath -o bin/phenix-debug main.go
+	CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o bin/phenix-debug main.go
 
 .PHONY: phenix-tunneler
 phenix-tunneler: bin/phenix-tunneler-linux-amd64 bin/phenix-tunneler-darwin-arm64 bin/phenix-tunneler-darwin-amd64 bin/phenix-tunneler-windows-amd64.exe

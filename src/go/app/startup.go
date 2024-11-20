@@ -16,6 +16,7 @@ import (
 	"phenix/util/mm"
 	"phenix/util/plog"
 	"phenix/util/pubsub"
+	"phenix/util/vwifi"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -138,6 +139,23 @@ func (this Startup) PreStart(ctx context.Context, exp *types.Experiment) error {
 			if err := tmpl.CreateFileFromTemplate("linux_interfaces.tmpl", node, ifaceFile); err != nil {
 				return fmt.Errorf("generating linux interfaces script: %w", err)
 			}
+
+			// Add wifi configuration files
+			filesToInject, err := vwifi.GetFilesToInject(startupDir, node.General().Hostname(), node, vwifi.FileInjectionModeRegular)
+
+			if err != nil {
+				return fmt.Errorf("getting wifi files to inject: %w", err)
+			}
+
+			for _, fileToInject := range filesToInject {
+				node.AddInject(
+					fileToInject.Src,
+					fileToInject.Dst,
+					fileToInject.Permissions,
+					fileToInject.Description,
+				)
+			}
+
 		case "windows":
 			startupFile := startupDir + "/" + node.General().Hostname() + "-startup.ps1"
 

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"phenix/types/version"
 	"phenix/util"
 	"phenix/util/mm/mmcli"
+	"phenix/util/vwifi"
 
 	"github.com/mitchellh/mapstructure"
 	"inet.af/netaddr"
@@ -191,6 +193,22 @@ func (this *Vrouter) PreStart(ctx context.Context, exp *types.Experiment) error 
 			vyattaConfig,
 			"", "",
 		)
+
+		// Add wifi configuration files
+		filesToInject, err := vwifi.GetFilesToInject(vrouterDir, node.General().Hostname(), node, vwifi.FileInjectionModeVyatta)
+
+		if err != nil {
+			return fmt.Errorf("getting wifi files to inject: %w", err)
+		}
+
+		for _, fileToInject := range filesToInject {
+			node.AddInject(
+				fileToInject.Src,
+				filepath.Join("/boot/vyos/rw/", fileToInject.Dst),
+				fileToInject.Permissions,
+				fileToInject.Description,
+			)
+		}
 
 		if ntpAddr == "" {
 			var err error

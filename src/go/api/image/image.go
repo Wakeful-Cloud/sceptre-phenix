@@ -111,6 +111,7 @@ func SetDefaults(img *v1.Image) error {
 		return fmt.Errorf("variant %s is not implemented", img.Variant)
 	}
 
+	addScriptToImage(img, "POSTBUILD_VWIFI_PACKAGES", POSTBUILD_VWIFI_PACKAGES)
 	addScriptToImage(img, "POSTBUILD_APT_CLEANUP", POSTBUILD_APT_CLEANUP)
 
 	switch img.Variant {

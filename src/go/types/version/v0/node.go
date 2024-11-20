@@ -8,6 +8,8 @@ import (
 	"time"
 
 	ifaces "phenix/types/interfaces"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type Node struct {
@@ -18,7 +20,40 @@ type Node struct {
 	HardwareF    *Hardware              `json:"hardware" yaml:"hardware" structs:"hardware" mapstructure:"hardware"`
 	NetworkF     *Network               `json:"network" yaml:"network" structs:"network" mapstructure:"network"`
 	InjectionsF  []*Injection           `json:"injections" yaml:"injections" structs:"injections" mapstructure:"injections"`
+}
 
+func (this Node) Validate() error {
+	var errs error = nil
+
+	if this.GeneralF != nil {
+		err := this.GeneralF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating general %v: %w", this.GeneralF, err))
+		}
+	}
+
+	if this.HardwareF != nil {
+		err := this.HardwareF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating hardware %v: %w", this.HardwareF, err))
+		}
+	}
+
+	if this.NetworkF != nil {
+		err := this.NetworkF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating network %v: %w", this.NetworkF, err))
+		}
+	}
+
+	for _, injection := range this.InjectionsF {
+		err := injection.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating injection %v: %w", injection, err))
+		}
+	}
+
+	return errs
 }
 
 func (this Node) Annotations() map[string]interface{} {
@@ -101,7 +136,7 @@ func (this *Node) AddHardware(os string, vcpu, memory int) ifaces.NodeHardware {
 	return h
 }
 
-func (this *Node) AddNetworkInterface(typ, name, vlan string) ifaces.NodeNetworkInterface {
+func (this *Node) AddNetworkInterface(typ ifaces.NodeNetworkInterfaceType, name, vlan string) ifaces.NodeNetworkInterface {
 	i := &Interface{
 		TypeF: typ,
 		NameF: name,
@@ -169,7 +204,10 @@ type General struct {
 	VMTypeF      string `json:"vm_type" yaml:"vm_type" structs:"vm_type" mapstructure:"vm_type"`
 	SnapshotF    *bool  `json:"snapshot" yaml:"snapshot" structs:"snapshot" mapstructure:"snapshot"`
 	DoNotBootF   *bool  `json:"do_not_boot" yaml:"do_not_boot" structs:"do_not_boot" mapstructure:"do_not_boot"`
+}
 
+func (this General) Validate() error {
+	return nil
 }
 
 func (this General) Hostname() string {
@@ -187,7 +225,7 @@ func (this General) VMType() string {
 func (this General) Snapshot() *bool {
 	return this.SnapshotF
 }
-func (this *General) SetSnapshot(b bool)  {
+func (this *General) SetSnapshot(b bool) {
 	this.SnapshotF = &b
 }
 
@@ -205,6 +243,19 @@ type Hardware struct {
 	MemoryF int      `json:"memory,string" yaml:"memory" structs:"memory" mapstructure:"memory"`
 	OSTypeF string   `json:"os_type" yaml:"os_type" structs:"os_type" mapstructure:"os_type"`
 	DrivesF []*Drive `json:"drives" yaml:"drives" structs:"drives" mapstructure:"drives"`
+}
+
+func (this Hardware) Validate() error {
+	var errs error = nil
+
+	for _, drive := range this.DrivesF {
+		err := drive.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating drive %v: %w", drive, err))
+		}
+	}
+
+	return errs
 }
 
 func (this Hardware) CPU() string {
@@ -259,6 +310,10 @@ type Drive struct {
 	InjectPartitionF *int   `json:"inject_partition,string" yaml:"inject_partition" structs:"inject_partition" mapstructure:"inject_partition"`
 }
 
+func (this Drive) Validate() error {
+	return nil
+}
+
 func (this Drive) Image() string {
 	return this.ImageF
 }
@@ -295,6 +350,10 @@ type Injection struct {
 	PermissionsF string `json:"permissions" yaml:"permissions" structs:"permissions" mapstructure:"permissions"`
 }
 
+func (this Injection) Validate() error {
+	return nil
+}
+
 func (this Injection) Src() string {
 	return this.SrcF
 }
@@ -312,6 +371,10 @@ func (this Injection) Permissions() string {
 }
 
 type Delay struct{}
+
+func (this Delay) Validate() error {
+	return nil
+}
 
 func (this Delay) Timer() time.Duration {
 	return 0

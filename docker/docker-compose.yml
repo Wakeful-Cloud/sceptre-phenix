@@ -42,12 +42,8 @@ services:
     healthcheck:
       test: phenix version
   minimega:
-    build:
-      context: .
-      dockerfile: Dockerfile.minimega
-      args:
-        MM_REV: da0b90c
-    image: minimega
+    # Build the custom minimega image (For example, in the minimega repository root: docker build -t minimega:vwifi --file docker/Dockerfile .)
+    image: minimega:vwifi
     container_name: minimega
     privileged: true
     <<: *common
@@ -66,6 +62,7 @@ services:
       MM_FILEPATH: /phenix/images
       MM_LOGFILE: /var/log/phenix/minimega.log
       MM_LOGLEVEL: info
+      MM_VWIFI: true
   es:
     image: elasticsearch:7.17.5
     container_name: es

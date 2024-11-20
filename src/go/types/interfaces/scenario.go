@@ -1,11 +1,15 @@
 package ifaces
 
 type ScenarioSpec interface {
+	Validate() error
+
 	Apps() []ScenarioApp
 	App(string) ScenarioApp
 }
 
 type ScenarioApp interface {
+	Validate() error
+
 	Name() string
 	FromScenario() string
 	AssetDir() string
@@ -25,6 +29,8 @@ type ScenarioApp interface {
 }
 
 type ScenarioAppHost interface {
+	Validate() error
+
 	Hostname() string
 	Metadata() map[string]any
 

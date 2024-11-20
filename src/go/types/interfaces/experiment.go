@@ -4,6 +4,7 @@ import "context"
 
 type VLANSpec interface {
 	Init() error
+	Validate() error
 
 	Aliases() map[string]int
 	Min() int
@@ -16,6 +17,7 @@ type VLANSpec interface {
 
 type ExperimentSpec interface {
 	Init() error
+	Validate() error
 
 	ExperimentName() string
 	BaseDir() string
@@ -44,6 +46,7 @@ type ExperimentSpec interface {
 
 type ExperimentStatus interface {
 	Init() error
+	Validate() error
 
 	StartTime() string
 	AppStatus() map[string]any

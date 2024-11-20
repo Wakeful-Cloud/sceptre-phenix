@@ -8,10 +8,12 @@ import (
 	"phenix/store"
 	ifaces "phenix/types/interfaces"
 	"phenix/types/version"
+	"phenix/util"
 	"phenix/util/common"
 	"phenix/util/mm"
 
 	"github.com/activeshadow/structs"
+	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -38,6 +40,22 @@ func NewExperiment(md store.ConfigMetadata) *Experiment {
 		Spec:     spec.(ifaces.ExperimentSpec),
 		Status:   status.(ifaces.ExperimentStatus),
 	}
+}
+
+func (this Experiment) Validate() error {
+	var errs error = nil
+
+	err := this.Spec.Validate()
+	if err != nil {
+		errs = multierror.Append(errs, fmt.Errorf("validating experiment spec: %v: %w", this.Spec, err))
+	}
+
+	err = this.Status.Validate()
+	if err != nil {
+		errs = multierror.Append(errs, fmt.Errorf("validating experiment status: %v: %w", this.Status, err))
+	}
+
+	return errs
 }
 
 func (this *Experiment) Reload() error {
@@ -247,6 +265,34 @@ func DecodeExperimentFromConfig(c store.Config) (*Experiment, error) {
 		Metadata: c.Metadata,
 		Spec:     spec,
 		Status:   status,
+	}
+
+	// Set wifi interface names and MAC addresses
+	for _, node := range exp.Spec.Topology().Nodes() {
+		nodeWifiIndex := 0
+		for _, iface := range node.Network().Interfaces() {
+			// Skip if not a wifi interface
+			if iface.Type() != ifaces.NodeNetworkInterfaceTypeWifi {
+				continue
+			}
+
+			// Set wifi interface MAC address
+			if iface.MAC() == "" {
+				iface.SetMAC(util.RandomMac())
+			}
+
+			// Set wifi interface name
+			iface.SetName(fmt.Sprintf("wlan%d", nodeWifiIndex))
+
+			// Increment wifi interface index
+			nodeWifiIndex++
+		}
+	}
+
+	// Validate the experiment
+	err = exp.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("validating experiment %v: %w", exp, err)
 	}
 
 	return exp, nil

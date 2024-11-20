@@ -2,7 +2,7 @@
 # required for use with phenix. This build stage is needed for making sure the
 # latest version of the minimega Python module is installed.
 ARG  MM_MIN_REV=c8e20a3
-FROM ghcr.io/activeshadow/minimega/minimega:${MM_MIN_REV} AS minimega
+FROM minimega:vwifi AS minimega
 
 
 # ** jsbuilder **
@@ -124,6 +124,10 @@ RUN ["/bin/bash", "-c", "if [ -n $INSTALL_CERTS ]; then \
   done && \
   update-ca-certificates; \
   fi"]
+
+RUN wget -O debootstrap.deb http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/debootstrap_1.0.134ubuntu1_all.deb \
+  && dpkg -i debootstrap.deb \
+  && rm debootstrap.deb
 
 RUN wget https://github.com/glattercj/vmdb2/releases/latest/download/vmdb2 -O /usr/bin/vmdb2 \
   && chmod +x /usr/bin/vmdb2

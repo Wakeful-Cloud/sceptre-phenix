@@ -1,10 +1,10 @@
 *.bdb
-*.code-workspace
 
 .devcontainer
 .vscode
 
 bin
+docker/tmp
 
 staticcheck.conf
 

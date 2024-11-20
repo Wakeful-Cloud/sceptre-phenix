@@ -13,6 +13,7 @@ import (
 	"phenix/util/notes"
 
 	"github.com/activeshadow/structs"
+	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -25,6 +26,20 @@ type VLANSpec struct {
 func (this *VLANSpec) Init() error {
 	if this.AliasesF == nil {
 		this.AliasesF = make(map[string]int)
+	}
+
+	return nil
+}
+
+func (this VLANSpec) Validate() error {
+	for k, v := range this.AliasesF {
+		if this.MinF != 0 && v < this.MinF {
+			return fmt.Errorf("topology VLAN %s (VLAN ID %d) is less than experiment min VLAN ID of %d", k, v, this.MinF)
+		}
+
+		if this.MaxF != 0 && v > this.MaxF {
+			return fmt.Errorf("topology VLAN %s (VLAN ID %d) is greater than experiment min VLAN ID of %d", k, v, this.MaxF)
+		}
 	}
 
 	return nil
@@ -56,20 +71,6 @@ func (this *VLANSpec) SetMin(m int) {
 
 func (this *VLANSpec) SetMax(m int) {
 	this.MaxF = m
-}
-
-func (this VLANSpec) Validate() error {
-	for k, v := range this.AliasesF {
-		if this.MinF != 0 && v < this.MinF {
-			return fmt.Errorf("topology VLAN %s (VLAN ID %d) is less than experiment min VLAN ID of %d", k, v, this.MinF)
-		}
-
-		if this.MaxF != 0 && v > this.MaxF {
-			return fmt.Errorf("topology VLAN %s (VLAN ID %d) is greater than experiment min VLAN ID of %d", k, v, this.MaxF)
-		}
-	}
-
-	return nil
 }
 
 type ExperimentSpec struct {
@@ -131,6 +132,33 @@ func (this *ExperimentSpec) Init() error {
 	}
 
 	return nil
+}
+
+func (this ExperimentSpec) Validate() error {
+	var errs error = nil
+
+	if this.TopologyF != nil {
+		err := this.TopologyF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating topology %v: %w", this.TopologyF, err))
+		}
+	}
+
+	if this.ScenarioF != nil {
+		err := this.ScenarioF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating scenario %v: %w", this.ScenarioF, err))
+		}
+	}
+
+	if this.VLANsF != nil {
+		err := this.VLANsF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating VLANs %v: %w", this.VLANsF, err))
+		}
+	}
+
+	return errs
 }
 
 func (this ExperimentSpec) ExperimentName() string {
@@ -322,6 +350,10 @@ func (this *ExperimentStatus) Init() error {
 		this.VLANsF = make(map[string]int)
 	}
 
+	return nil
+}
+
+func (this ExperimentStatus) Validate() error {
 	return nil
 }
 

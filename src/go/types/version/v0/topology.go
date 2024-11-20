@@ -1,11 +1,27 @@
 package v0
 
 import (
+	"fmt"
 	ifaces "phenix/types/interfaces"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type TopologySpec struct {
 	NodesF []*Node `json:"nodes" yaml:"nodes" structs:"nodes" mapstructure:"nodes"`
+}
+
+func (this TopologySpec) Validate() error {
+	var errs error = nil
+
+	for _, node := range this.NodesF {
+		err := node.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating node %v: %w", node, err))
+		}
+	}
+
+	return errs
 }
 
 func (this *TopologySpec) Nodes() []ifaces.NodeSpec {
