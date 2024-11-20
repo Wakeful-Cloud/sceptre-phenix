@@ -28,11 +28,74 @@ spec:
   release: kali
   script_order:
   - POSTBUILD_APT_KALI
+  - POSTBUILD_VWIFI_PACKAGES
   - POSTBUILD_APT_CLEANUP
   - POSTBUILD_NO_ROOT_PASSWD
   - POSTBUILD_PHENIX_HOSTNAME
   - POSTBUILD_PHENIX_BASE
   scripts:
+    POSTBUILD_VWIFI_PACKAGES: |
+      apt update
+      apt install -y build-essential git hostapd iw libnl-3-dev libnl-genl-3-dev wpasupplicant
+      git clone https://github.com/Raizo62/vwifi.git -b v6.3 /root/vwifi
+      cd /root/vwifi
+      make gitversion
+      make update
+      make
+      make tools
+      make install
+      rm -rf /root/vwifi
+
+      cat > /etc/systemd/system/vwifi-client.service <<EOF
+      [Unit]
+      Description=vwifi-client
+      After=network.target
+
+      [Service]
+      Type=simple
+      Restart=on-failure
+      RestartSec=2
+      ExecStart=/usr/local/bin/vwifi-client
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
+
+      cat > /etc/systemd/system/vwifi-hostapd@.service <<EOF
+      [Unit]
+      Description=hostapd service for vwifi (%I)
+      After=network.target
+      BindsTo=sys-subsystem-net-devices-%i.device
+
+      [Service]
+      Type=forking
+      PIDFile=/run/hostapd.%i.pid
+      Restart=on-failure
+      RestartSec=2
+      EnvironmentFile=-/etc/default/hostapd
+      ExecStart=/usr/sbin/hostapd -B -P /run/hostapd.%i.pid $DAEMON_OPTS /etc/hostapd/%i.conf
+
+      [Install]
+      WantedBy=multi-user.target sys-subsystem-net-devices-%i.device
+      EOF
+
+      cat > /etc/systemd/system/vwifi-wpa_supplicant@.service <<EOF
+      [Unit]
+      Description=wpa_supplicant service for vwifi (%I)
+      Requires=sys-subsystem-net-devices-%i.device
+      After=sys-subsystem-net-devices-%i.device
+      Before=network.target
+      Wants=network.target
+
+      # NetworkManager users will probably want the dbus version instead.
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/sbin/wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant-%i.conf -i %i
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
     POSTBUILD_APT_CLEANUP: |
       apt clean || apt-get clean || echo "unable to clean apt cache"
     POSTBUILD_APT_KALI: |

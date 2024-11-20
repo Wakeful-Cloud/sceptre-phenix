@@ -713,11 +713,213 @@ components:
         ruleset_in:
           type: string
           example: InFromInet
+    iface_wifi:
+      type: object
+      properties:
+        wifi:
+          type: object
+          nullable: true
+          properties:
+            mode:
+              type: string
+              description: |
+                Wifi mode
+                - ap: Access Point (AP) mode - turns the Wifi interface into a Wifi AP
+                - infrastructure: infrastructure mode - connects to an existing Wifi network
+              enum:
+                - ap
+                - infrastructure
+              example: infrastructure
+            ssid:
+              type: string
+              minLength: 1
+              maxLength: 32
+              description: Wifi SSID
+              example: Phenix Wifi
+            hidden:
+              type: boolean
+              description: Hide the SSID
+              example: false
+            auth:
+              description: Wifi authentication configuration (Heavily inspired by [netplan](https://netplan.readthedocs.io/en/latest/netplan-yaml/#authentication))
+              type: object
+              properties:
+                mode:
+                  type: string
+                  description: |
+                    The authentication mode to use.
+                    - none: No key authentication
+                    - wep: Wired Equivalent Privacy (WEP) authentication
+                    - wpa-personal (WPA-PSK): Wi-Fi Protected Access (WPA) Personal authentication
+                    - wpa2-personal (WPA-PSK): Wi-Fi Protected Access 2 (WPA2) Personal authentication
+                    - wpa3-personal (SAE): Wi-Fi Protected Access 3 (WPA3) Personal authentication
+                    - wpa-enterprise (WPA-EAP): Wi-Fi Protected Access (WPA) Enterprise authentication
+                    - wpa2-enterprise (WPA-EAP): Wi-Fi Protected Access 2 (WPA2) Enterprise authentication
+                    - wpa3-enterprise (WPA-EAP-SUITE-B-192): Wi-Fi Protected Access 3 (WPA3) Enterprise authentication
+                  enum:
+                    - none
+                    - wep
+                    - wpa-personal
+                    - wpa2-personal
+                    - wpa3-personal
+                    - wpa-enterprise
+                    - wpa2-enterprise
+                    - wpa3-enterprise
+                  example: wpa2-personal
+                password:
+                  type: string
+                  nullable: true
+                  description: The password string for EAP, or the pre-shared key for WPA-PSK. Prefix with an x to indicate a hex key.
+                  example: "12345678"
+                method:
+                  type: string
+                  nullable: true
+                  description: The EAP method to use.
+                  enum:
+                    - leap
+                    - peap
+                    - tls
+                    - ttls
+                  example: tls
+                identity:
+                  type: string
+                  nullable: true
+                  description: The client/server identity to use for EAP.
+                anonymous_identity:
+                  type: string
+                  nullable: true
+                  description: The client identity to pass over the unencrypted channel if the chosen EAP method supports passing a different tunnelled identity. Ignored if mode is not infrastructure.
+                ca_certificate:
+                  type: string
+                  nullable: true
+                  description: Path to a file with one or more trusted certificate authority (CA) certificates.
+                certificate:
+                  type: string
+                  nullable: true
+                  description: Path to a file containing the certificate to be used by the client/server during authentication.
+                key:
+                  type: string
+                  nullable: true
+                  description: Path to a file containing the private key corresponding to client/server-certificate.
+                key_password:
+                  type: string
+                  nullable: true
+                  description: Password to use to decrypt the private key specified in key if it is encrypted.
+                phase2_auth:
+                  type: string
+                  nullable: true
+                  description: Phase 2 authentication mechanism. Ignored if mode is not infrastructure.
+            position:
+              type: object
+              nullable: true
+              description: Wifi position (in meters; relative to the origin).
+              properties:
+                x:
+                  type: integer
+                  format: int32
+                  example: 0
+                y:
+                  type: integer
+                  format: int32
+                  example: 0
+                z:
+                  type: integer
+                  format: int32
+                  example: 0
+              example:
+                x: 3
+                y: -4
+                z: 5
+            extra:
+              type: array
+              nullable: true
+              items:
+                type: object
+                allOf:
+                  - type: object
+                    required:
+                      - key
+                    properties:
+                      key:
+                        type: string
+                        description: Configuration item key.
+                  - oneOf:
+                    - type: object
+                      required:
+                        - value
+                      properties:
+                        value:
+                          type: string
+                          description: Configuration item literal value.
+                    - type: object
+                      required:
+                        - file
+                      properties:
+                        file:
+                          type: string
+                          description: Configuration item file path on the host. This file will be copied to the node and the path to the copied file will be used as the value.
+              description: Extra hostapd/wpa_supplicant configuration (if mode is ap/client, respectively). **This is appended to the generated configuration, so be careful not to duplicate keys.**
+              example:
+                # From https://github.com/Raizo62/vwifi/blob/f8f29b02f786f59f90309947d5b4b23e7d6e8cc7/tests/hostapd_wpa.conf
+                - key: interface
+                  value: wlan0
+                - key: driver
+                  value: nl80211
+                - key: hw_mode
+                  value: g
+                - key: channel
+                  value: "1"
+                - key: ssid
+                  value: mac80211_wpa
+                - key: wpa
+                  value: "2"
+                - key: wpa_key_mgmt
+                  value: WPA-PSK
+                - key: wpa_pairwise
+                  value: CCMP
+                - key: wpa_passphrase
+                  value: "12345678"
+            ap:
+              type: object
+              description: AP-mode configuration. Only used if mode is ap.
+              properties:
+                generation:
+                  type: string
+                  description: |
+                    Wifi generation.
+                    - 1: 802.11b (2.4 GHz)
+                    - 2: 802.11a (5 GHz)
+                    - 3: 802.11g (2.4 GHz)
+                    - 4: 802.11n (2.4/5 GHz)
+                    - 5: 802.11ac (5 GHz)
+                    - 6: 802.11ax (2.4/5 GHz)
+                    - 6e: 802.11ax (2.4/5/6 GHz)
+                    - 7: 802.11be (2.4/5/6 GHz)
+                  enum:
+                    - ""
+                    - "1"
+                    - "2"
+                    - "3"
+                    - "4"
+                    - "5"
+                    - "6"
+                    - "6e"
+                    - "7"
+                  example: "4"
+            infrastructure:
+              type: object
+              description: Infrastructure-mode configuration. Only used if mode is infrastructure.
+              properties:
+                passive:
+                  type: boolean
+                  description: Whether or not to passively scan for networks.
+                  example: false
     static_iface:
       allOf:
       - $ref: '#/components/schemas/iface'
       - $ref: '#/components/schemas/iface_address'
       - $ref: '#/components/schemas/iface_rulesets'
+      - $ref: '#/components/schemas/iface_wifi'
       required:
       - type
       - proto
@@ -726,6 +928,7 @@ components:
           type: string
           enum:
           - ethernet
+          - wifi
           default: ethernet
           example: ethernet
         proto:
@@ -739,6 +942,7 @@ components:
       allOf:
       - $ref: '#/components/schemas/iface'
       - $ref: '#/components/schemas/iface_rulesets'
+      - $ref: '#/components/schemas/iface_wifi'
       required:
       - type
       - proto
@@ -747,6 +951,7 @@ components:
           type: string
           enum:
           - ethernet
+          - wifi
           default: ethernet
           example: ethernet
         proto:

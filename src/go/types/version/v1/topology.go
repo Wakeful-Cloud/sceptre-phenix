@@ -11,6 +11,35 @@ type TopologySpec struct {
 	NodesF []*Node `json:"nodes" yaml:"nodes" structs:"nodes" mapstructure:"nodes"`
 }
 
+func (this *TopologySpec) Init(bridge string) error {
+	// Validate
+	err := this.Validate()
+
+	if err != nil {
+		return fmt.Errorf("validating topology %v: %w", this, err)
+	}
+
+	// Set defaults
+	for _, node := range this.NodesF {
+		node.setDefaults(bridge)
+	}
+
+	return nil
+}
+
+func (this *TopologySpec) Validate() error {
+	var errs error = nil
+
+	for _, node := range this.NodesF {
+		err := node.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating node %v: %w", node, err))
+		}
+	}
+
+	return errs
+}
+
 func (this *TopologySpec) Nodes() []ifaces.NodeSpec {
 	if this == nil {
 		return nil
@@ -141,18 +170,4 @@ func (this TopologySpec) HasCommands() bool {
 	}
 
 	return false
-}
-
-func (this *TopologySpec) Init(bridge string) error {
-	var errs error
-
-	for _, n := range this.NodesF {
-		if err := n.validate(); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("validating node %s: %w", n.GeneralF.HostnameF, err))
-		}
-
-		n.setDefaults(bridge)
-	}
-
-	return errs
 }

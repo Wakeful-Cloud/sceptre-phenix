@@ -4,11 +4,25 @@ import (
 	"fmt"
 	ifaces "phenix/types/interfaces"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/mapstructure"
 )
 
 type ScenarioSpec struct {
 	AppsF []*ScenarioApp `json:"apps" yaml:"apps" structs:"apps" mapstructure:"apps"`
+}
+
+func (this *ScenarioSpec) Validate() error {
+	var errs error = nil
+
+	for _, app := range this.AppsF {
+		err := app.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating app %v: %w", app, err))
+		}
+	}
+
+	return errs
 }
 
 func (this *ScenarioSpec) Apps() []ifaces.ScenarioApp {
@@ -47,6 +61,19 @@ type ScenarioApp struct {
 	HostsF           []*ScenarioAppHost `json:"hosts,omitempty" yaml:"hosts,omitempty" structs:"hosts" mapstructure:"hosts"`
 	RunPeriodicallyF string             `json:"runPeriodically,omitempty" yaml:"runPeriodically,omitempty" structs:"runPeriodically" mapstructure:"runPeriodically"`
 	DisabledF        bool               `json:"disabled,omitempty" yaml:"disabled,omitempty" structs:"disabled" mapstructure:"disabled"`
+}
+
+func (this ScenarioApp) Validate() error {
+	var errs error = nil
+
+	for _, host := range this.HostsF {
+		err := host.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating host %v: %w", host, err))
+		}
+	}
+
+	return errs
 }
 
 func (this ScenarioApp) Name() string {
@@ -138,6 +165,10 @@ func (this ScenarioApp) ParseHostMetadata(name string, md any) error {
 type ScenarioAppHost struct {
 	HostnameF string         `json:"hostname" yaml:"hostname" structs:"hostname" mapstructure:"hostname"`
 	MetadataF map[string]any `json:"metadata" yaml:"metadata" structs:"metadata" mapstructure:"metadata"`
+}
+
+func (this ScenarioAppHost) Validate() error {
+	return nil
 }
 
 func (this ScenarioAppHost) Hostname() string {

@@ -11,12 +11,10 @@
 #                                                                             #
 #                                                                             #
 ###############################################################################
-# File: configure network interfaces (for Linux)
+# File: configure network interfaces (for Vyatta/VyOS)
 ###############################################################################
 
-# Stop NetworkManager from configuring interfaces and overwriting these settings
-service NetworkManager stop
-
+{{- if and .Network (gt (.Network.NumInterfaces "wifi") 0) }}
 # Helper functions
 function require_command {
     if [ ! $(command -v $1) ]; then
@@ -25,7 +23,6 @@ function require_command {
     fi
 }
 
-{{- if and .Network (gt (.Network.NumInterfaces "wifi") 0) }}
 # [ ----- Begin wifi initial setup ----- ]
 
 # Ensure prerequisites are installed
@@ -35,13 +32,15 @@ require_command modprobe
 modprobe mac80211_hwsim radios=0
 
 # [ ----- End wifi initial setup ----- ]
-{{- end }}
 
 {{- $ifaces := .Network.Interfaces -}}
 {{- $routes := .Network.Routes }}
 
 # Configure interfaces
 {{- range $idx, $iface := $ifaces }}
+    {{- if ne $iface.Type "wifi" }}
+    {{- continue }}
+    {{- end }}
 
 # [ ----- Begin interface {{ $iface.Name }} (#{{ $idx }}) ----- ]
 
@@ -69,11 +68,7 @@ systemctl enable --now vwifi-wpa_supplicant@{{ $iface.Name }}
 # Use the ip command if available
 if command -v ip 2>&1 > /dev/null; then
     # Device name
-        {{- if eq $iface.Type "wifi" }}
     DEVICE_NAME="{{ $iface.Name }}"
-        {{- else }}
-    DEVICE_NAME=$(ip -oneline -4 link show | grep -ivE 'LOOPBACK|wlan' | awk 'NR=={{ add $idx 1 }} {split($2, devname, ":"); print devname[1]}')
-        {{- end }}
 
     # Bring the device down and reset the configuration
     ip link set dev "$DEVICE_NAME" down
@@ -100,11 +95,7 @@ if command -v ip 2>&1 > /dev/null; then
 # Otherwise fallback to the ifconfig command
 else
     # Get the device name
-        {{- if eq $iface.Type "wifi" }}
     DEVICE_NAME="{{ $iface.Name }}"
-        {{- else }}
-    DEVICE_NAME=$(ifconfig -s -a | grep -ivE '^lo|Iface' | awk 'NR=={{ add $idx 1 }} { print $1 }')
-        {{- end }}
 
     # Bring the device down
     ifconfig "$DEVICE_NAME" down
@@ -136,7 +127,6 @@ echo "nameserver {{ $server }}" >> /etc/resolv.conf
 
 # [ ----- End interface {{ $iface.Name }} (#{{ $idx }}) ----- ]
 {{- end }}
-{{- if and .Network (gt (.Network.NumInterfaces "wifi") 0) }}
 
 # [ ----- Begin wifi final setup ----- ]
 

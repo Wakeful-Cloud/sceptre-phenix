@@ -5,6 +5,7 @@
 .vscode
 
 bin
+docker/tmp
 
 staticcheck.conf
 

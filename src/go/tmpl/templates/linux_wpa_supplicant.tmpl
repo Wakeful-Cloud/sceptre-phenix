@@ -1,0 +1,313 @@
+###############################################################################
+#                                                                             #
+#                 ██████╗ ██╗  ██╗███████╗███╗  ██╗██╗██╗  ██╗                #
+#                 ██╔══██╗██║  ██║██╔════╝████╗ ██║██║╚██╗██╔╝                #
+#                 ██████╔╝███████║█████╗  ██╔██╗██║██║ ╚███╔╝                 #
+#                 ██╔═══╝ ██╔══██║██╔══╝  ██║╚████║██║ ██╔██╗                 #
+#                 ██║     ██║  ██║███████╗██║ ╚███║██║██╔╝╚██╗                #
+#                 ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚══╝╚═╝╚═╝  ╚═╝                #
+#                                                                             #
+#                                                                             #
+###############################################################################
+# File: wpa_supplicant configuration
+# From: https://w1.fi/cgit/hostap/plain/wpa_supplicant/wpa_supplicant.conf?h=hostap_2_11&id=d945ddd368085f255e68328f2d3b020ceea359af
+###############################################################################
+
+
+##### wpa_supplicant configuration file #######################################
+#
+# This file describes configuration file format and lists all available option.
+# Please also take a look at simpler configuration examples in 'examples'
+# subdirectory.
+#
+# Empty lines and lines starting with # are ignored
+
+# global configuration (shared by all network blocks)
+#
+# Parameters for the control interface. If this is specified, wpa_supplicant
+# will open a control interface that is available for external programs to
+# manage wpa_supplicant. The meaning of this string depends on which control
+# interface mechanism is used. For all cases, the existence of this parameter
+# in configuration is used to determine whether the control interface is
+# enabled.
+#
+# For UNIX domain sockets (default on Linux and BSD): This is a directory that
+# will be created for UNIX domain sockets for listening to requests from
+# external programs (CLI/GUI, etc.) for status information and configuration.
+# The socket file will be named based on the interface name, so multiple
+# wpa_supplicant processes can be run at the same time if more than one
+# interface is used.
+# /var/run/wpa_supplicant is the recommended directory for sockets and by
+# default, wpa_cli will use it when trying to connect with wpa_supplicant.
+#
+# Access control for the control interface can be configured by setting the
+# directory to allow only members of a group to use sockets. This way, it is
+# possible to run wpa_supplicant as root (since it needs to change network
+# configuration and open raw sockets) and still allow GUI/CLI components to be
+# run as non-root users. However, since the control interface can be used to
+# change the network configuration, this access needs to be protected in many
+# cases. By default, wpa_supplicant is configured to use gid 0 (root). If you
+# want to allow non-root users to use the control interface, add a new group
+# and change this value to match with that group. Add users that should have
+# control interface access to this group. If this variable is commented out or
+# not included in the configuration file, group will not be changed from the
+# value it got by default when the directory or socket was created.
+#
+# When configuring both the directory and group, use following format:
+# DIR=/var/run/wpa_supplicant GROUP=wheel
+# DIR=/var/run/wpa_supplicant GROUP=0
+# (group can be either group name or gid)
+#
+# For UDP connections (default on Windows): The value will be ignored. This
+# variable is just used to select that the control interface is to be created.
+# The value can be set to, e.g., udp (ctrl_interface=udp)
+#
+# For Windows Named Pipe: This value can be used to set the security descriptor
+# for controlling access to the control interface. Security descriptor can be
+# set using Security Descriptor String Format (see http://msdn.microsoft.com/
+# library/default.asp?url=/library/en-us/secauthz/security/
+# security_descriptor_string_format.asp). The descriptor string needs to be
+# prefixed with SDDL=. For example, ctrl_interface=SDDL=D: would set an empty
+# DACL (which will reject all connections). See README-Windows.txt for more
+# information about SDDL string format.
+#
+ctrl_interface=/var/run/wpa_supplicant
+
+# Whether to force passive scan for network connection
+#
+# By default, scans will send out Probe Request frames on channels that allow
+# active scanning. This advertise the local station to the world. Normally this
+# is fine, but users may wish to do passive scanning where the radio should only
+# listen quietly for Beacon frames and not send any Probe Request frames. Actual
+# functionality may be driver dependent.
+#
+# This parameter can be used to force only passive scanning to be used
+# for network connection cases. It should be noted that this will slow
+# down scan operations and reduce likelihood of finding the AP. In
+# addition, some use cases will override this due to functional
+# requirements, e.g., for finding an AP that uses hidden SSID
+# (scan_ssid=1) or P2P device discovery.
+#
+# 0:  Do normal scans (allow active scans) (default)
+# 1:  Do passive scans.
+{{ if and (and .Wifi .Wifi.Infrastructure) .Wifi.Infrastructure.Passive }}
+passive_scan=1
+{{ else }}
+passive_scan=0
+{{ end }}
+
+# network block
+#
+# Each network (usually AP's sharing the same SSID) is configured as a separate
+# block in this configuration file. The network blocks are in preference order
+# (the first match is used).
+#
+# network block fields:
+network={
+  # ssid: SSID (mandatory); network name in one of the optional formats:
+  #	- an ASCII string with double quotation
+  #	- a hex string (two characters per octet of SSID)
+  #	- a printf-escaped ASCII string P"<escaped string>"
+  ssid="{{ .Wifi.SSID }}"
+
+  # scan_ssid:
+  #	0 = do not scan this SSID with specific Probe Request frames (default)
+  #	1 = scan with SSID-specific Probe Request frames (this can be used to
+  #	    find APs that do not accept broadcast SSID or use multiple SSIDs;
+  #	    this will add latency to scanning, so enable this only when needed)
+  {{ if .Wifi.Hidden }}
+  scan_ssid=1
+  {{ else }}
+  scan_ssid=0
+  {{ end }}
+
+  # This option can also be set outside of all network blocks for the bgscan
+  # parameter to apply for all the networks that have no specific bgscan
+  # parameter.
+  #
+  # proto: list of accepted protocols
+  # WPA = WPA/IEEE 802.11i/D3.0
+  # RSN = WPA2/IEEE 802.11i (also WPA2 can be used as an alias for RSN)
+  # Note that RSN is used also for WPA3.
+  # If not set, this defaults to: WPA RSN
+  {{ if contains .Wifi.Auth.Mode (list "wpa-personal" "wpa-enterprise") }}
+  proto=WPA
+  {{ else if contains .Wifi.Auth.Mode (list "wpa2-personal" "wpa3-personal" "wpa2-enterprise" "wpa3-enterprise") }}
+  proto=RSN
+  {{ end }}
+
+  # key_mgmt: list of accepted authenticated key management protocols
+  # WPA-PSK = WPA pre-shared key (this requires 'psk' field)
+  # WPA-EAP = WPA using EAP authentication
+  # IEEE8021X = IEEE 802.1X using EAP authentication and (optionally) dynamically
+  #	generated WEP keys
+  # NONE = WPA is not used; plaintext or static WEP could be used
+  # WPA-NONE = WPA-None for IBSS (deprecated; use proto=RSN key_mgmt=WPA-PSK
+  #	instead)
+  # FT-PSK = Fast BSS Transition (IEEE 802.11r) with pre-shared key
+  # FT-EAP = Fast BSS Transition (IEEE 802.11r) with EAP authentication
+  # FT-EAP-SHA384 = Fast BSS Transition (IEEE 802.11r) with EAP authentication
+  #	and using SHA384
+  # WPA-PSK-SHA256 = Like WPA-PSK but using stronger SHA256-based algorithms
+  # WPA-EAP-SHA256 = Like WPA-EAP but using stronger SHA256-based algorithms
+  # SAE = Simultaneous authentication of equals; pre-shared key/password -based
+  #	authentication with stronger security than WPA-PSK especially when using
+  #	not that strong password; a.k.a. WPA3-Personal
+  # FT-SAE = SAE with FT
+  # WPA-EAP-SUITE-B = Suite B 128-bit level
+  # WPA-EAP-SUITE-B-192 = Suite B 192-bit level
+  # OSEN = Hotspot 2.0 Rel 2 online signup connection
+  # FILS-SHA256 = Fast Initial Link Setup with SHA256
+  # FILS-SHA384 = Fast Initial Link Setup with SHA384
+  # FT-FILS-SHA256 = FT and Fast Initial Link Setup with SHA256
+  # FT-FILS-SHA384 = FT and Fast Initial Link Setup with SHA384
+  # OWE = Opportunistic Wireless Encryption (a.k.a. Enhanced Open)
+  # DPP = Device Provisioning Protocol
+  # If not set, this defaults to: WPA-PSK WPA-EAP
+  {{ if contains .Wifi.Auth.Mode (list "none" "wep") }}
+  key_mgmt=NONE
+  {{ else if contains .Wifi.Auth.Mode (list "wpa-personal" "wpa2-personal") }}
+  key_mgmt=WPA-PSK
+  {{ else if contains .Wifi.Auth.Mode (list "wpa3-personal") }}
+  key_mgmt=SAE
+  {{ else if contains .Wifi.Auth.Mode (list "wpa-enterprise" "wpa2-enterprise") }}
+  key_mgmt=WPA-EAP
+  {{ else if contains .Wifi.Auth.Mode (list "wpa3-enterprise") }}
+  key_mgmt=WPA-EAP-SUITE-B-192
+  {{ end }}
+
+  # psk: WPA preshared key; 256-bit pre-shared key
+  # The key used in WPA-PSK mode can be entered either as 64 hex-digits, i.e.,
+  # 32 bytes or as an ASCII passphrase (in which case, the real PSK will be
+  # generated using the passphrase and SSID). ASCII passphrase must be between
+  # 8 and 63 characters (inclusive). ext:<name of external PSK field> format can
+  # be used to indicate that the PSK/passphrase is stored in external storage.
+  # This field is not needed, if WPA-EAP is used.
+  # Note: Separate tool, wpa_passphrase, can be used to generate 256-bit keys
+  # from ASCII passphrase. This process uses lot of CPU and wpa_supplicant
+  # startup and reconfiguration time can be optimized by generating the PSK only
+  # only when the passphrase or SSID has actually changed.
+  {{ if contains .Wifi.Auth.Mode (list "wpa-personal" "wpa2-personal" "wpa3-personal" "wpa-enterprise" "wpa2-enterprise" "wpa3-enterprise") }}
+  {{ if ne .Wifi.Auth.HexPassword "" }}
+  psk={{ .Wifi.Auth.HexPassword }}
+  {{ else if ne .Wifi.Auth.AsciiPassword "" }}
+  psk="{{ .Wifi.Auth.AsciiPassword }}"
+  {{ end }}
+  {{ end }}
+
+  # wep_key0..3: Static WEP key (ASCII in double quotation, e.g. "abcde" or
+  # hex without quotation, e.g., 0102030405)
+  # wep_tx_keyidx: Default WEP key index (TX) (0..3)
+  {{ if eq .Wifi.Auth.Mode "wep" }}
+  wep_tx_keyidx=0
+  {{ if ne .Wifi.Auth.HexPassword "" }}
+  wep_key0={{ .Wifi.Auth.HexPassword }}
+  {{ else if ne .Wifi.Auth.AsciiPassword "" }}
+  wep_key0="{{ .Wifi.Auth.AsciiPassword }}"
+  {{ end }}
+  {{ end }}
+
+  # eap: space-separated list of accepted EAP methods
+  #	MD5 = EAP-MD5 (insecure and does not generate keying material ->
+  #			cannot be used with WPA; to be used as a Phase 2 method
+  #			with EAP-PEAP or EAP-TTLS)
+  #       MSCHAPV2 = EAP-MSCHAPv2 (cannot be used separately with WPA; to be used
+  #		as a Phase 2 method with EAP-PEAP or EAP-TTLS)
+  #       OTP = EAP-OTP (cannot be used separately with WPA; to be used
+  #		as a Phase 2 method with EAP-PEAP or EAP-TTLS)
+  #       GTC = EAP-GTC (cannot be used separately with WPA; to be used
+  #		as a Phase 2 method with EAP-PEAP or EAP-TTLS)
+  #	TLS = EAP-TLS (client and server certificate)
+  #	PEAP = EAP-PEAP (with tunnelled EAP authentication)
+  #	TTLS = EAP-TTLS (with tunnelled EAP or PAP/CHAP/MSCHAP/MSCHAPV2
+  #			 authentication)
+  #	If not set, all compiled in methods are allowed.
+  {{ if eq .Wifi.Auth.Method "leap" }}
+  eap=LEAP
+  {{ else if eq .Wifi.Auth.Method "peap" }}
+  eap=PEAP
+  {{ else if eq .Wifi.Auth.Method "tls" }}
+  eap=TLS
+  {{ else if eq .Wifi.Auth.Method "ttls" }}
+  eap=TTLS
+  {{ end }}
+
+  # ca_cert: CA certificate for Interworking network selection
+  {{ if ne .Wifi.Auth.CaCertificate "" }}
+  ca_cert="/etc/wpa_supplicant/{{ .Name }}-ca.cert"
+  {{ end }}
+
+  # client_cert: File path to client certificate file (PEM/DER)
+  #	This field is used with Interworking networking selection for a case
+  #	where client certificate/private key is used for authentication
+  #	(EAP-TLS). Full path to the file should be used since working
+  #	directory may change when wpa_supplicant is run in the background.
+  {{ if ne .Wifi.Auth.Certificate "" }}
+  client_cert="/etc/wpa_supplicant/{{ .Name }}-cert.cert"
+  {{ end }}
+
+  # private_key: File path to client private key file (PEM/DER/PFX)
+  #	When PKCS#12/PFX file (.p12/.pfx) is used, client_cert should be
+  #	commented out. Both the private key and certificate will be read
+  #	from the PKCS#12 file in this case. Full path to the file should be
+  #	used since working directory may change when wpa_supplicant is run
+  #	in the background.
+  {{ if ne .Wifi.Auth.Key "" }}
+  private_key="/etc/wpa_supplicant/{{ .Name }}-key.key"
+  {{ end }}
+
+  # private_key_passwd: Password for private key file
+  {{ if ne .Wifi.Auth.KeyPassword "" }}
+  private_key_passwd="{{ .Wifi.Auth.KeyPassword }}"
+  {{ end }}
+
+  # identity: Identity string for EAP
+  #	This field is also used to configure user NAI for
+  #	EAP-PSK/PAX/SAKE/GPSK.
+  # anonymous_identity: Anonymous identity string for EAP (to be used as the
+  #	unencrypted identity with EAP types that support different tunnelled
+  #	identity, e.g., EAP-TTLS). This field can also be used with
+  #	EAP-SIM/AKA/AKA' to store the pseudonym identity.
+  # password: Password string for EAP. This field can include either the
+  #	plaintext password (using ASCII or hex string) or a NtPasswordHash
+  #	(16-byte MD4 hash of password) in hash:<32 hex digits> format.
+  #	NtPasswordHash can only be used when the password is for MSCHAPv2 or
+  #	MSCHAP (EAP-MSCHAPv2, EAP-TTLS/MSCHAPv2, EAP-TTLS/MSCHAP, LEAP).
+  #	EAP-PSK (128-bit PSK), EAP-PAX (128-bit PSK), and EAP-SAKE (256-bit
+  #	PSK) is also configured using this field. For EAP-GPSK, this is a
+  #	variable length PSK. ext:<name of external password field> format can
+  #	be used to indicate that the password is stored in external storage.
+  # ca_cert: File path to CA certificate file (PEM/DER). This file can have one
+  #	or more trusted CA certificates. If ca_cert and ca_path are not
+  #	included, server certificate will not be verified. This is insecure and
+  #	a trusted CA certificate should always be configured when using
+  #	EAP-TLS/TTLS/PEAP. Full path should be used since working directory may
+  #	change when wpa_supplicant is run in the background.
+  {{ if ne .Wifi.Auth.Identity "" }}
+  identity="{{ .Wifi.Auth.Identity }}"
+  {{ end }}
+
+  {{ if ne .Wifi.Auth.AnonymousIdentity "" }}
+  anonymous_identity="{{ .Wifi.Auth.AnonymousIdentity }}"
+  {{ end }}
+
+  # phase2: Phase2 (inner authentication with TLS tunnel) parameters
+  #	(string with field-value pairs, e.g., "auth=MSCHAPV2" for EAP-PEAP or
+  #	"autheap=MSCHAPV2 autheap=MD5" for EAP-TTLS). "mschapv2_retry=0" can be
+  #	used to disable MSCHAPv2 password retry in authentication failure cases.
+  {{ if ne .Wifi.Auth.Phase2Auth "" }}
+  phase2="auth={{ .Wifi.Auth.Phase2Auth }}"
+  {{ end }}
+
+  ##### Extra configuration ###################################################
+  {{ range $index, $item := .Wifi.Extra }}
+  # Key: {{ $item.key }}
+  # Value: {{ default $item.value "not set" }}
+  # File: {{ default $item.file "not set" }}
+  {{ if ne $item.File "" }}
+  {{ $item.Key }}=/etc/wpa_supplicant/{{ .Name }}-extra-{{ $index }}
+  {{ else }}
+  {{ $item.Key }}={{ $item.Value }}
+  {{ end }}
+  {{ end }}
+}

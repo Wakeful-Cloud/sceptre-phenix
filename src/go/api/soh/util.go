@@ -20,6 +20,7 @@ import (
 	"phenix/util/common"
 	"phenix/util/mm"
 	"phenix/util/plog"
+	"phenix/util/vwifi"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -132,7 +133,7 @@ func (this *SOH) buildElasticServerNode(exp *types.Experiment, ip string, cidr i
 	node.AddInject(elasticConfigFile, "/etc/elasticsearch/elasticsearch.yml", "", "")
 	node.AddInject(kibanaConfigFile, "/etc/kibana/kibana.yml", "", "")
 
-	iface := node.AddNetworkInterface("ethernet", "IF0", "MGMT")
+	iface := node.AddNetworkInterface(ifaces.NodeNetworkInterfaceTypeEthernet, "IF0", "MGMT")
 	iface.SetAddress(ip)
 	iface.SetMask(cidr)
 	iface.SetProto("static")
@@ -261,6 +262,22 @@ func (this *SOH) buildPacketBeatNode(exp *types.Experiment, target ifaces.NodeSp
 
 	if err := tmpl.CreateFileFromTemplate("linux_interfaces.tmpl", node, ifaceFile); err != nil {
 		return nil, nil, fmt.Errorf("generating linux interfaces config: %w", err)
+	}
+
+	// Add wifi configuration files
+	filesToInject, err := vwifi.GetFilesToInject(startupDir, name, node.(ifaces.NodeSpec), vwifi.FileInjectionModeRegular)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting wifi files to inject: %w", err)
+	}
+
+	for _, fileToInject := range filesToInject {
+		spec["injections"] = append(spec["injections"].([]map[string]interface{}), map[string]interface{}{
+			"src":         fileToInject.Src,
+			"dst":         fileToInject.Dst,
+			"permissions": fileToInject.Permissions,
+			"description": fileToInject.Description,
+		})
 	}
 
 	data := struct {

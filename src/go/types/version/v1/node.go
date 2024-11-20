@@ -8,6 +8,8 @@ import (
 	"time"
 
 	ifaces "phenix/types/interfaces"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type Node struct {
@@ -23,6 +25,51 @@ type Node struct {
 	DelayF       *Delay                 `json:"delay" yaml:"delay" structs:"delay" mapstructure:"delay"`
 	CommandsF    []string               `json:"commands" yaml:"commands" structs:"commands" mapstructure:"commands"`
 	ExternalF    *bool                  `json:"external" yaml:"external" structs:"external" mapstructure:"external"`
+}
+
+func (this Node) Validate() error {
+	var errs error = nil
+
+	if this.ExternalF != nil && !*this.ExternalF {
+		errs = multierror.Append(errs, fmt.Errorf("the external key should not be included for internal nodes (even if set to false)"))
+	}
+
+	if this.GeneralF != nil {
+		err := this.GeneralF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating general %v: %w", this.GeneralF, err))
+		}
+	}
+
+	if this.HardwareF != nil {
+		err := this.HardwareF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating hardware %v: %w", this.HardwareF, err))
+		}
+	}
+
+	if this.NetworkF != nil {
+		err := this.NetworkF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating network %v: %w", this.NetworkF, err))
+		}
+	}
+
+	for _, injection := range this.InjectionsF {
+		err := injection.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating injection %v: %w", injection, err))
+		}
+	}
+
+	if this.DelayF != nil {
+		err := this.DelayF.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating delay %v: %w", this.DelayF, err))
+		}
+	}
+
+	return errs
 }
 
 func (this Node) Annotations() map[string]interface{} {
@@ -122,7 +169,7 @@ func (this *Node) AddHardware(os string, vcpu, memory int) ifaces.NodeHardware {
 	return h
 }
 
-func (this *Node) AddNetworkInterface(typ, name, vlan string) ifaces.NodeNetworkInterface {
+func (this *Node) AddNetworkInterface(typ ifaces.NodeNetworkInterfaceType, name, vlan string) ifaces.NodeNetworkInterface {
 	i := &Interface{
 		TypeF: typ,
 		NameF: name,
@@ -259,6 +306,10 @@ type General struct {
 	DoNotBootF   *bool  `json:"do_not_boot" yaml:"do_not_boot" structs:"do_not_boot" mapstructure:"do_not_boot"`
 }
 
+func (this General) Validate() error {
+	return nil
+}
+
 func (this *General) Hostname() string {
 	if this == nil {
 		return ""
@@ -323,6 +374,19 @@ type Hardware struct {
 	MemoryF int      `json:"memory" yaml:"memory" structs:"memory" mapstructure:"memory"`
 	OSTypeF string   `json:"os_type" yaml:"os_type" structs:"os_type" mapstructure:"os_type"`
 	DrivesF []*Drive `json:"drives" yaml:"drives" structs:"drives" mapstructure:"drives"`
+}
+
+func (this Hardware) Validate() error {
+	var errs error = nil
+
+	for _, drive := range this.DrivesF {
+		err := drive.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating drive %v: %w", drive, err))
+		}
+	}
+
+	return errs
 }
 
 func (this *Hardware) CPU() string {
@@ -397,6 +461,10 @@ type Drive struct {
 	InjectPartitionF *int   `json:"inject_partition" yaml:"inject_partition" structs:"inject_partition" mapstructure:"inject_partition"`
 }
 
+func (this Drive) Validate() error {
+	return nil
+}
+
 func (this Drive) Image() string {
 	return this.ImageF
 }
@@ -433,6 +501,10 @@ type Injection struct {
 	PermissionsF string `json:"permissions" yaml:"permissions" structs:"permissions" mapstructure:"permissions"`
 }
 
+func (this Injection) Validate() error {
+	return nil
+}
+
 func (this Injection) Src() string {
 	return this.SrcF
 }
@@ -447,18 +519,6 @@ func (this Injection) Description() string {
 
 func (this Injection) Permissions() string {
 	return this.PermissionsF
-}
-
-func (this Node) validate() error {
-	if this.ExternalF == nil {
-		return nil
-	}
-
-	if external := *this.ExternalF; !external {
-		return fmt.Errorf("the external key should not be included for internal nodes (even if set to false)")
-	}
-
-	return nil
 }
 
 func (this *Node) setDefaults(bridge string) {
@@ -515,6 +575,19 @@ type Delay struct {
 	C2F    []C2Delay `json:"c2" yaml:"c2" structs:"c2" mapstructure:"c2"`
 }
 
+func (this Delay) Validate() error {
+	var errs error = nil
+
+	for _, c2 := range this.C2F {
+		err := c2.Validate()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("validating c2 %v: %w", c2, err))
+		}
+	}
+
+	return errs
+}
+
 func (this Delay) Timer() time.Duration {
 	if this.TimerF == "" {
 		return 0
@@ -541,6 +614,10 @@ func (this Delay) C2() []ifaces.NodeC2Delay {
 type C2Delay struct {
 	HostnameF string `json:"hostname" yaml:"hostname" structs:"hostname" mapstructure:"hostname"`
 	UseUUIDF  bool   `json:"useUUID" yaml:"useUUID" structs:"useUUID" mapstructure:"useUUID"`
+}
+
+func (this C2Delay) Validate() error {
+	return nil
 }
 
 func (this C2Delay) Hostname() string {
